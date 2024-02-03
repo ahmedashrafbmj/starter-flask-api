@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIXAAM CHATBOT </title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous"> 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            /* Set background image */
+            background-image: url('templates\46b6fb2d8ba7c62d01fa01b1356bebbf.png');
+            /* Specify background properties */
+            background-size: cover; /* or "contain" */
+            background-position: center center;
+            background-repeat: no-repeat;
+            /* Set a background color as a fallback */
+            background-color: #000;
+        }
+
+        .chat-sign-button{
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class = "Container"></div>
+    <!-- <h1>Welcome to My Chatbot1</h1>  -->
+    <button id="chat-widget-button" type="button" class="btn btn-primary rounded-circle position-fixed chat-sign-button" style="bottom: 20px; right: 20px;"></button> 
+    <!-- Chatbox --> 
+    <div id="chat-widget" class="card position-fixed shadow d-none" style="bottom: 100px; right : 20px; width: 300px;">
+    <div class="card-header bg-primary text-white">
+    Chatbot 
+    <button id="chat-widget-close-button" type="button" class="btn-close float-end" aria-label="Close"></button>
+    </div>
+    <div class="card-body" id="chat-widget-messages"></div>
+    <div class="card-footer">
+        <input type="text" class="form-control" id="chat-widget-input" placeholder="Type your message">
+ 
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            $("#chat-widget-button").on("click", function(){
+                $("#chat-widget").toggleClass("d-none");
+            });
+            
+            $("#chat-widget-close-button").on('click',function(){
+                $("#chat-widget").addClass("d-none");
+            });
+
+            $("#chat-widget-input").keypress(function(event){
+                if(event.which === 13){
+                    let userMessage = $("#chat-widget-input").val();
+                    $("#chat-widget-input").val("");
+                    
+                    // append user message to the chatbox
+                    $("#chat-widget-messages").append("<div><strong>You:</strong> " + userMessage + "</div>");
+                    
+                    // Send user message to the server
+                    $.ajax({
+                        type: "POST",
+                        url: "/webhook",
+                        contentType: "application/json",
+                        data: JSON.stringify({ message: userMessage }),
+                        success: function(data) {
+                            // Handle bot's response
+                            let botResponse = data.response;
+                            $("#chat-widget-messages").append("<div><strong>Bot:</strong> " + botResponse + "</div>");
+                        },
+                        error: function() {
+                            // Handle error if needed
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
