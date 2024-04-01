@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CKEditor with Audio Recognition</title>
+    <script src="https://cdn.ckeditor.com/4.16.0/standard/ckeditor.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+</head>
+<body>
+    <h1>CKEditor with Audio Recognition</h1>
+    <p>Click the "Start Recognition" button to begin recording your speech, press again to stop</p>
+    <p>Please wait for about 5 seconds after starting before speaking</p>
+    <button id="start_recognition_btn" onclick="toggleRecognition()">Start/Stop Recognition</button>
+    <br><br>
+
+    <div id="recognized_text_area">
+        <textarea id="recognized_text" name="recognized_text"></textarea>
+        <br>
+        <button id="append_to_editor_btn" onclick="appendToEditor()">Append to Editor</button>
+        <!-- <button id="clear_text_btn" onclick="clearTextArea()">Clear Text Area</button> -->
+
+    </div> <!-- New area for recognized text -->
+
+    <form method="POST">    
+        <textarea id="editor" name="editor"></textarea>
+        <br>
+        <button type="submit">Submit</button>
+    </form>
+    <br>
+
+    <script>
+         var recognitionRunning = false;
+        var fetchContentRunning = true;
+
+        function saveEditorContent() {
+            // Get CKEditor content
+            var editorContent = CKEDITOR.instances.editor.getData();
+
+            // Make AJAX request to your Flask server
+            $.ajax({
+                type: 'POST',
+                url: '/save_content',
+                contentType: 'application/json;charset=UTF-8',
+                data: JSON.stringify({ content: editorContent }),
+                success: function (response) {
+                    console.log('Content saved successfully:', response);
+                },
+                error: function (error) {
+                    console.error('Error saving content:', error);
+                }
+            });
+        }
+
+        function toggleRecognition() {
+            recognitionRunning ? stopRecognition() : startRecognition();
+        }
+
+        function startRecognition() {
+            $.post("/start_recognition", function(data) {
+                recognitionRunning = true;
+                $("#start_recognition_btn").text("Stop Recognition");
+                startFetchingContent()
+            });
+        }
+
+        function stopRecognition() {
+            $.get("/stop_recognition", function(data) {
+                recognitionRunning = false;
+                $("#start_recognition_btn").text("Start Recognition");
+                stopFetchingContent();
+            });
+        }
+
+        // Update the recognized text in the text area above CKEditor
+        function updateText() {
+            $.get("/get_text", function(data) {
+                // Update the recognized text in the text area
+                $("#recognized_text").val(data.recognized_text);
+
+                if (recognitionRunning) {
+                    setTimeout(updateText, 5000);
+                }
+            });
+        }
+
+
+        function stopFetchingContent() {
+            fetchContentRunning = false;
+        }
+
+        function startFetchingContent() {
+            fetchContentRunning = true;
+        }
+
+        function fetchRecognizedContent() {
+            if (fetchContentRunning) {
+                fetch('/audio_send_text', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Set the fetched content to the text editor
+                        document.getElementById('recognized_text').value = data.processed_text;
+
+                        if (recognitionRunning) {
+                            setTimeout(fetchRecognizedContent, 1000); // Adjust the interval as needed
+                        }
+                    })
+                    .catch(error => console.error('Error fetching file:', error));
+            }
+        }
+
+        // Append the recognized text to CKEditor
+        function appendToEditor() {
+            var editor = CKEDITOR.instances.editor;
+            var recognizedText = document.getElementById('recognized_text').value;
+
+            // Append the recognized text to the current content of CKEditor
+            editor.insertHtml(recognizedText);
+
+            // Clear the recognized text area
+            document.getElementById('recognized_text').value = '';
+        }
+
+        // function clearTextArea() {
+        //     document.getElementById('recognized_text').value = '';
+        // }
+
+        CKEDITOR.replace('editor');
+        // document.addEventListener('DOMContentLoaded', () => {
+        //     setInterval(() => {
+        //         saveEditorContent();
+        //     }, 500);
+        setInterval(() => {
+            fetchRecognizedContent();
+        }, 1000);
+        // });
+
+    </script>
+</body>
+</html>
