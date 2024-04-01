@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CKEditor with Audio Recognition</title>
+    <!-- Include CKEditor CDN -->
+    <script src="https://cdn.ckeditor.com/4.16.0/standard/ckeditor.js"></script>
+</head>
+<body>
+    <h1>CKEditor with Audio Recognition</h1>
+    
+    <form method="POST">
+        <!-- CKEditor div -->
+        <div id="editor"></div>
+        <br>
+        <!-- Submit button -->
+        <button type="submit">Submit</button>
+    </form>
+
+    <!-- Buttons for starting and stopping audio recognition -->
+    <button onclick="startAudioRecognition()">Start Audio Recognition</button>
+    <button onclick="stopAudioRecognition()">Stop Audio Recognition</button>
+
+    <!-- Initialize CKEditor and load local file content -->
+    <script>
+        // Function to fetch file content
+        function fetchFileContent() {
+            fetch('/send_text', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    // Set the fetched content as the initial value of CKEditor
+                    CKEDITOR.instances['editor'].setData(data.processed_text);
+                })
+                .catch(error => console.error('Error fetching file:', error));
+        }
+
+        // Function to start audio recognition
+        function startAudioRecognition() {
+            fetch('/recognize_audio', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => console.log(data))
+                .catch(error => console.error('Error starting audio recognition:', error));
+        }
+
+        // Function to stop audio recognition
+        function stopAudioRecognition() {
+            fetch('/stop_audio_recognition', { method: 'GET' })
+                .then(response => response.json())
+                .then(data => console.log(data))
+                .catch(error => console.error('Error stopping audio recognition:', error));
+        }
+
+        // Initialize CKEditor on the editor div and load file content when the page is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            CKEDITOR.replace('editor');
+            fetchFileContent();
+        });
+    </script>
+</body>
+</html>

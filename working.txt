@@ -1,0 +1,77 @@
+python code from app display text on ck.py
+
+from flask import Flask, render_template, request, jsonify
+import os, json
+
+# Get the directory of the current script
+current_directory = os.path.dirname(os.path.abspath(__file__))
+text_file_path = os.path.join(current_directory, 'text.txt')
+
+with open(text_file_path) as text_file:
+    default_text_to_send = text_file.read()
+    print(default_text_to_send)
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return render_template('index dtoc.html')
+
+@app.route('/send_text', methods=['POST'])
+def send_text():
+    # Get the text from the AJAX request
+    received_data = request.form
+    text_to_send = received_data.get('text', default_text_to_send)
+
+    # Send the text back to the frontend without processing
+    return jsonify({'processed_text': text_to_send})
+
+if __name__ == '__main__':
+    app.run(debug=True, use_reloader=False)
+
+
+html code from inedx dtoc.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CKEditor Flask Example</title>
+    <!-- Include CKEditor CDN -->
+    <script src="https://cdn.ckeditor.com/4.16.0/standard/ckeditor.js"></script>
+</head>
+<body>
+    <h1>CKEditor Flask Example</h1>
+    
+    <form method="POST">
+        <!-- CKEditor textarea -->
+        <textarea name="editor_content" id="editor"></textarea>
+        <br>
+        <!-- Submit button -->
+        <button type="submit">Submit</button>
+    </form>
+
+    <!-- Initialize CKEditor and load local file content -->
+    <script>
+        // Function to fetch file content
+        function fetchFileContent() {
+            fetch('/send_text', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    // Set the fetched content as the initial value of CKEditor
+                    CKEDITOR.instances['editor'].setData(data.processed_text);
+                })
+                .catch(error => console.error('Error fetching file:', error));
+        }
+
+
+
+        // Initialize CKEditor
+        CKEDITOR.replace('editor');
+
+        // Fetch and load file content when the page is ready
+        document.addEventListener('DOMContentLoaded', fetchFileContent);
+    </script>
+</body>
+</html>

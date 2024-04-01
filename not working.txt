@@ -1,0 +1,168 @@
+python code from app v1.4.py
+
+from flask import Flask, render_template, jsonify
+import vosk
+import pyaudio
+import threading
+
+app = Flask(__name__)
+
+model = vosk.Model(r"E:\Musab\Task 14 Speech to text\vosk-model-small-en-us-0.15")
+recognizer = vosk.KaldiRecognizer(model, 16000)
+recognized_text = ""
+recognition_running = False
+recognition_thread = None  # Variable to store the recognition thread
+
+def callback(in_data, frame_count, time_info, status):
+    global recognized_text, recognition_running
+    
+    if not recognition_running:
+        return (in_data, pyaudio.paComplete)
+    
+    if status:
+        print(status)
+    else:
+        recognizer.AcceptWaveform(in_data)
+        result = recognizer.PartialResult()
+        recognized_text = str(result)[17:-3]
+        print(recognized_text, end='', flush=True)
+
+    return (in_data, pyaudio.paContinue)
+
+def speech_to_text():
+    global recognition_running
+
+    p = pyaudio.PyAudio()
+    
+    try:
+        stream = p.open(format=pyaudio.paInt16,
+                        channels=1,
+                        rate=16000,
+                        input=True,
+                        frames_per_buffer=4000,
+                        stream_callback=callback)
+    except IOError as e:
+        print(f'Error opening stream: {e}')
+    except Exception as e:
+        print(f'Error: {e}')
+
+    print('Mic: On')
+    
+    stream.start_stream()
+    print("Say something:")
+
+    while recognition_running:
+        pass  # Continue streaming until recognition_running is False
+
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
+
+    result = recognizer.FinalResult()
+    print(result)
+    with open('conversation.txt', 'w') as file:
+        file.write(str(result))
+
+def start_recognition_thread():
+    global recognition_thread
+    recognition_thread = threading.Thread(target=speech_to_text)
+    recognition_thread.start()
+
+@app.route('/')
+def index():
+    return render_template('index 1.4.html')
+
+@app.route('/start_recognition', methods=['POST'])
+def start_recognition():
+    global recognized_text, recognition_running, recognition_thread
+
+    if recognition_thread and recognition_thread.is_alive():
+        return jsonify({'status': 'Recognition already started'})
+
+    recognized_text = ""  # Clear previous recognized text
+    recognition_running = True
+    start_recognition_thread()
+
+    return jsonify({'status': 'Recognition started'})
+
+@app.route('/stop_recognition', methods=['GET'])
+def stop_recognition():
+    global recognition_running, recognition_thread
+    recognition_running = False
+
+    if recognition_thread and recognition_thread.is_alive():
+        recognition_thread.join()  # Wait for the recognition thread to finish
+
+    return jsonify({'status': 'Recognition stopped', 'text': recognized_text})
+
+@app.route('/get_text')
+def get_text():
+    global recognized_text
+    return jsonify({'text': recognized_text})
+
+if __name__ == "__main__":
+    app.run(debug=True, use_reloader=False)
+
+
+
+
+html code from index v1.4
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech to Text</title>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+</head>
+<body>
+    <h1>Speech to Text</h1>
+    <p>Click the "Start Recognition" button to begin recording your speech, press again to stop</p>
+    <button id="start_recognition_btn" onclick="toggleRecognition()">Start Recognition</button>
+    <br>
+    <br>
+    <p>Recognized Text:</p>
+    <!-- Replace the <div> with an <input> element -->
+    <input type="text" id="recognized_text" readonly style="width: 300px; height: 50px;">
+
+    <script>
+        var recognitionRunning = false;
+    
+        function toggleRecognition() {
+            if (recognitionRunning) {
+                stopRecognition();
+            } else {
+                startRecognition();
+            }
+        }
+    
+        function startRecognition() {
+            console.log("Start Recognition Clicked");
+            $.post("/start_recognition", function(data) {
+                recognitionRunning = true;
+                $("#start_recognition_btn").text("Stop Recognition");
+                updateText();
+            });
+        }
+
+        function stopRecognition() {
+            console.log("Stop Recognition Clicked");
+            $.get("/stop_recognition", function(data) {
+                recognitionRunning = false;
+                $("#start_recognition_btn").text("Start Recognition");
+                $("#recognized_text").val(data.text);  // Update the recognized text in the input
+            });
+        }
+
+        function updateText() {
+            $.get("/get_text", function(data) {
+                $("#recognized_text").val(data.text);  // Update the recognized text in the input
+                if (recognitionRunning) {
+                    requestAnimationFrame(updateText);
+                }
+            });
+        }
+    </script>    
+</body>
+</html>
